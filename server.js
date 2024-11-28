@@ -15,29 +15,57 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
     .then(() => console.log('Connected to MongoDB Atlas'))
     .catch((error) => console.log('MongoDB connection error:', error));
 
+app.get('/api/getCatelogs', async (req, res) => {
+    try {
+        const { modelName } = req.query;
+        if (!modelName) {
+            return res.status(400).json({ error: 'modelName is required' });
+        }
+        const Model = require(`./models/${modelName}`); // Assuming models are in the 'models' folder
+
+        if (!Model) {
+            return res.status(404).json({ error: 'Model not found' });
+        }
+        const sort = { 'name': 1 };
+        const data = await Model.find({}).sort(sort);
+
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch data', details: error.message });
+    }
+})
+
 // Common GET API to fetch all documents
 app.get('/api/getData', async (req, res) => {
     try {
         // Extract query parameters from the request
-        const { MonthYear, Place } = req.query;
+        const { MonthYear, Place, sortBy } = req.query;
 
-        // Validate the monthYear parameter
+        // Validate the MonthYear parameter
         if (!MonthYear) {
-            return res.status(400).json({ error: 'monthYear is required' });
+            return res.status(400).json({ error: 'MonthYear is required' });
         }
 
         // Build the query object dynamically
         const query = { MonthYear };
 
-        // If place is provided and is not 'null', add it to the query
+        // If Place is provided and is not 'null', add it to the query
         if (Place !== 'null' && Place) {
             query.Place = Place;
         }
 
-        // Query the database using the constructed query object
-        const data = await Attendance.find(query);
+        // Build the sort object dynamically
+        let sort = {};
+        if (sortBy) {
+            const sortParams = sortBy.split(':'); // Expected format: "field:order" (e.g., "Date:asc")
+            const field = sortParams[0];
+            const order = sortParams[1]?.toLowerCase() === 'desc' ? -1 : 1;
+            sort[field] = order;
+        }
 
-        console.log('Data Retrieved:', data);
+        // Query the database using the constructed query and sort options
+        const data = await Attendance.find(query).sort(sort);
+
         // Respond with the fetched data
         res.status(200).json(data);
     } catch (error) {
@@ -45,19 +73,15 @@ app.get('/api/getData', async (req, res) => {
     }
 });
 
-
 // POST route to create a new place
 app.post('/api/postData', async (req, res) => {
     try {
         const data = req.body;  // Get the data from the request body
 
-        let date = new Date(data.Date);
-        date.setHours(0, 0, 0, 0);
-        data.Date = date;
+        // let date = new Date(data.Date);
+        // data.Date = date;
 
         const newData = new Attendance(data); // Create a new instance of your Mongoose model
-
-        console.log('save data', newData);
 
         // Save the new data to the database
         const savedData = await newData.save();
