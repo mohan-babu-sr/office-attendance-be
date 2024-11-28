@@ -50,8 +50,8 @@ app.get('/api/getData', async (req, res) => {
         const query = { MonthYear };
 
         // If Place is provided and is not 'null', add it to the query
-        if (Place !== 'null' && Place) {
-            query.Place = Place;
+        if (Place && Place !== 'null') {
+            query.Place = Place; // Assuming Place contains the _id of a place
         }
 
         // Build the sort object dynamically
@@ -63,8 +63,11 @@ app.get('/api/getData', async (req, res) => {
             sort[field] = order;
         }
 
-        // Query the database using the constructed query and sort options
-        const data = await Attendance.find(query).sort(sort);
+        // Query the database with the constructed query and sort options
+        // Optionally populate the Place field if needed
+        const data = await Attendance.find(query)
+            .sort(sort)
+            .populate('Place'); // Populate Place field with reference data if required
 
         // Respond with the fetched data
         res.status(200).json(data);
@@ -72,6 +75,7 @@ app.get('/api/getData', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch data', details: error.message });
     }
 });
+
 
 // POST route to create a new place
 app.post('/api/postData', async (req, res) => {
